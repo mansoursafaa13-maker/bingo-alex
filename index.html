@@ -3,30 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منصة بنغو أونلاين</title>
+    <title>منصة بنغو أونلاين - حساب اللاعب</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1a1a2e; color: #fff; text-align: center; padding: 20px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1a1a2e; color: #fff; text-align: center; padding: 15px; margin: 0; }
         .container { max-width: 400px; margin: auto; background: #162447; padding: 20px; border-radius: 15px; box-shadow: 0px 4px 15px rgba(0,0,0,0.5); }
-        h1 { color: #e43f5a; }
-        .balance-box { background: #1f4068; padding: 10px; border-radius: 8px; font-size: 1.2rem; margin-bottom: 20px; }
+        h1 { color: #e43f5a; font-size: 1.6rem; }
+        .login-box, .game-box { background: #1f4068; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+        .balance-box { font-size: 1.2rem; background: #0f172a; padding: 10px; border-radius: 8px; margin-bottom: 15px; color: #4ade80; }
         .bingo-card { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 20px; }
-        .cell { background: #e43f5a; color: white; padding: 15px 5px; font-weight: bold; border-radius: 5px; font-size: 1.1rem; border: 1px solid #1a1a2e; }
+        .cell { background: #e43f5a; color: white; padding: 12px 2px; font-weight: bold; border-radius: 5px; font-size: 1rem; border: 1px solid #1a1a2e; transition: 0.3s; }
         .cell.free { background: #00b4d8; }
-        button { background-color: #0077b6; color: white; border: none; padding: 12px 25px; font-size: 1rem; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 15px; }
+        .cell.marked { background: #22c55e; box-shadow: 0 0 10px #22c55e; }
+        input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #475569; background: #1e293b; color: white; box-sizing: border-box; margin-bottom: 10px; font-size: 1rem; text-align: center; }
+        button { background-color: #0077b6; color: white; border: none; padding: 12px; font-size: 1rem; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
+        button:hover { background-color: #0096c7; }
+        .current-ball-stream { background: #eab308; color: #000; font-size: 1.3rem; font-weight: bold; padding: 10px; border-radius: 8px; margin-top: 15px; }
     </style>
 </head>
 <body>
+
 <div class="container">
-    <h1>🔴 بنغو لايف</h1>
-    <div class="balance-box">مرحباً بك | الرصيد الحالي متاح في حسابك</div>
-    <button onclick="alert('جاري الاتصال بالسيرفر لشراء بطاقتك...')">شراء بطاقة جولة جديدة</button>
-    <div class="bingo-card">
-        <div class="cell">B12</div><div class="cell">I22</div><div class="cell">N35</div><div class="cell">G50</div><div class="cell">O61</div>
-        <div class="cell">B3</div><div class="cell">I18</div><div class="cell">N41</div><div class="cell">G55</div><div class="cell">O70</div>
-        <div class="cell">B7</div><div class="cell">I25</div><div class="cell free">FREE</div><div class="cell">G48</div><div class="cell">O65</div>
-        <div class="cell">B14</div><div class="cell">I29</div><div class="cell">N33</div><div class="cell">G52</div><div class="cell">O74</div>
-        <div class="cell">B9</div><div class="cell">I16</div><div class="cell">N45</div><div class="cell">G59</div><div class="cell">O68</div>
+    <h1>🔴 بنغو لايف أونلاين</h1>
+
+    <!-- شاشة تسجيل دخول اللاعب لمشاهدة رصيده -->
+    <div id="loginSection" class="login-box">
+        <h3>ادخل اسم حسابك للعب</h3>
+        <input type="text" id="playerUser" placeholder="اكتب اسمك بدقة كما سجله الآدمن">
+        <button onclick="loginPlayer()">دخول الحساب 🔑</button>
+    </div>
+
+    <!-- شاشة اللعب الحية بعد تسجيل الدخول -->
+    <div id="gameSection" class="game-box" style="display: none;">
+        <div class="balance-box">
+            المستخدم: <span id="lblUser">--</span> | الرصيد: <strong id="lblBalance">0</strong> د.ع
+        </div>
+        
+        <div class="current-ball-stream">
+            الكرة الحالية في البث المباشر: <span id="lblLiveBall">انتظار...</span>
+        </div>
+
+        <button onclick="generateNewCard()">توليد بطاقة أرقام جديدة 🎲</button>
+
+        <div class="bingo-card" id="bingoCardContainer">
+            <!-- كروت البنغو تظهر هنا وتتغير تلقائياً -->
+        </div>
     </div>
 </div>
+
+<!-- ربط مكتبات Firebase والتشغيل المباشر -->
+<script type="module">
+    import { initializeApp } from "https://gstatic.com";
+    import { getDatabase, ref, onValue } from "https://gstatic.com";
+
+    // مفاتيح قاعدة بيانات مشروعك المخزنة في Firebase
+    const firebaseConfig = {
+        apiKey: "AIzaSyBMpor2cIXrN-IomLMnRZdCIiW2M",
+        authDomain: "://firebaseapp.com",
+        databaseURL: "https://firebaseio.com",
+        projectId: "bingo-alex",
+        storageBucket: "://appspot.com",
+        messagingSenderId: "367123985741",
+        appId: "1:367123985741:web:12a64c4bbadab51a84f4f7"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    let currentPlayer = "";
+    let drawnBallsList = [];
+
+    window.loginPlayer = function() {
+        let user = document.getElementById("playerUser").value.trim();
+        if(!user) { alert("الرجاء كتابة اسم الحساب!"); return; }
+        
+        // جلب رصيد اللاعب والتحقق منه من السيرفر
+        onValue(ref(db, 'players/' + user), (snapshot) => {
+            const data = snapshot.val();
+            if(data) {
+                currentPlayer = user;
+                document.getElementById("loginSection").style.display = "none";
+                document.getElementById("gameSection").style.display = "block";
+                document.getElementById("lblUser").innerText = user;
+                document.getElementById("lblBalance").innerText = data.balance || 0;
+            } else {
+                alert("الحساب غير مسجل! اطلب من الآدمن إنشائه وشحنه لك أولاً.");
+            }
+        });
+    };
+
+    // الاستماع الفوري للكرة المسحوبة من لوحة الآدمن لتحديث الشاشات أوتوماتيكياً
+    onValue(ref(db, 'game/'), (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            let currentBall = data.currentBall || "START";
+            document.getElementById("lblLiveBall").innerText = currentBall;
+            if (data.history) {
+                drawnBallsList = Object.values(data.history);
+            }
+            markMatchingCells();
+        }
+    });
+
+    // توليد مصفوفة أرقام بطاقة البنغو للـ 5 أعمدة التقليدية
+    window.generateNewCard = function() {
+        const container = document.getElementById("bingoCardContainer");
+        container.innerHTML = "";
+        
+        let ranges = {
+            'B': Array.from({length: 15}, (_, i) => i + 1),
+            'I': Array.from({length: 15}, (_, i) => i + 16),
+            'N': Array.from({length: 15}, (_, i) => i + 31),
+            'G': Array.from({length: 15}, (_, i) => i + 46),
+            'O': Array.from({length: 15}, (_, i) => i + 61)
+        };
+
+        let cardMatrix = [];
+        for(let i=0; i<5; i++) {
+            let row = [];
+            ['B', 'I', 'N', 'G', 'O'].forEach(letter => {
+                let list = ranges[letter];
+                let idx = Math.floor(Math.random() * list.length);
+                let num = list.splice(idx, 1)[0];
+                row.push({ text: letter + "-" + num, val: num });
+            });
+            cardMatrix.push(row);
+        }
+
+        // إنشاء المربعات داخل الواجهة
+        for(let r=0; r<5; r++) {
+            for(let c=0; c<5; c++) {
+                let cellDiv = document.createElement("div");
+                cellDiv.className = "cell";
+                if(r === 2 && c === 2) {
+                    cellDiv.innerText = "FREE";
+                    cellDiv.classList.add("free", "marked");
+                } else {
+                    cellDiv.innerText = cardMatrix[r][c].text;
+                }
+                container.appendChild(cellDiv);
+            }
+        }
+        markMatchingCells();
+    };
+
+    // تلوين المربع تلقائياً باللون الأخضر إذا تطابق مع أرقام السحب المباشر
+    function markMatchingCells() {
+        let cells = document.querySelectorAll(".cell");
+        cells.forEach(cell => {
+            if(drawnBallsList.includes(cell.innerText)) {
+                cell.classList.add("marked");
+            }
+        });
+    }
+</script>
 </body>
 </html>
+ع
