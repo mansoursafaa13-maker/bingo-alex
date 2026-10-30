@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة تحكم البنغو - الإدارة</title>
+    <title>لوحة تحكم البنغو - الإدارة الحية</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #f8fafc; text-align: center; padding: 15px; margin: 0; }
         .wrapper { max-width: 450px; margin: auto; background: #1e293b; padding: 20px; border-radius: 20px; box-shadow: 0px 10px 25px rgba(0,0,0,0.5); }
@@ -24,7 +24,7 @@
 <body>
 <div class="wrapper">
     <h1>لوحة السحب المركزي 🔴</h1>
-    <p>شاشة التحكم الخاصة بك (التي تبثها عبر تطبيق PRISM)</p>
+    <p>شاشة التحكم الخاصة بك (المربوطة بقاعدة البيانات الحية)</p>
     <div class="live-screen">
         <label>الكرة الحالية</label>
         <div class="ball-display" id="currentBall">START</div>
@@ -46,27 +46,74 @@
         <button class="btn btn-action" style="background:#eab308;" onclick="chargePlayer()">تأكيد الشحن</button>
     </div>
 </div>
-<script>
+
+<!-- ربط مكتبات Firebase الأساسية للعمل السحابي الفوري -->
+<script type="module">
+    import { initializeApp } from "https://gstatic.com";
+    import { getDatabase, ref, set, push, update, onValue } from "https://gstatic.com";
+
+    // إعدادات المفاتيح الخاصة بك المستخرجة من صورتك
+    const firebaseConfig = {
+        apiKey: "AIzaSyBMpor2cIXrN-IomLMnRZdCIiW2M",
+        authDomain: "://firebaseapp.com",
+        databaseURL: "https://firebaseio.com",
+        projectId: "bingo-alex",
+        storageBucket: "://appspot.com",
+        messagingSenderId: "367123985741",
+        appId: "1:367123985741:web:12a64c4bbadab51a84f4f7"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
     let totalBalls = Array.from({length: 75}, (_, i) => i + 1);
     let drawnList = [];
-    function drawBall() {
+
+    // استماع ومزامنة الكرات الحالية لتحديث الشاشة تلقائياً
+    onValue(ref(db, 'game/'), (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            document.getElementById("currentBall").innerText = data.currentBall || "START";
+            if (data.history) {
+                drawnList = Object.values(data.history);
+                document.getElementById("ballHistory").innerText = "الكرات السابقة: " + drawnList.join(", ");
+                totalBalls = Array.from({length: 75}, (_, i) => i + 1).filter(b => {
+                    let letter = b <= 15 ? 'B' : b <= 30 ? 'I' : b <= 45 ? 'N' : b <= 60 ? 'G' : 'O';
+                    return !drawnList.includes(letter + "-" + b);
+                });
+            }
+        }
+    });
+
+    window.drawBall = function() {
         if (totalBalls.length === 0) { alert("انتهت جميع الكرات الـ 75!"); return; }
         let randomIndex = Math.floor(Math.random() * totalBalls.length);
-        let ball = totalBalls.splice(randomIndex, 1)[0];
+        let ball = totalBalls.splice(randomIndex, 1);
         let letter = ball <= 15 ? 'B' : ball <= 30 ? 'I' : ball <= 45 ? 'N' : ball <= 60 ? 'G' : 'O';
         let fullBall = letter + "-" + ball;
-        drawnList.push(fullBall);
-        document.getElementById("currentBall").innerText = fullBall;
-        document.getElementById("ballHistory").innerText = "الكرات السابقة: " + drawnList.join(", ");
+        
+        set(ref(db, 'game/currentBall'), fullBall);
+        push(ref(db, 'game/history'), fullBall);
     }
-    function addPlayer() {
-        let name = document.getElementById("newUsername").value;
-        if(name) { alert("تم تسجيل اللاعب (" + name + ") بنجاح!"); document.getElementById("newUsername").value = ""; }
+
+    window.addPlayer = function() {
+        let name = document.getElementById("newUsername").value.trim();
+        if(name) {
+            set(ref(db, 'players/' + name), { username: name, balance: 0 });
+            alert("تم تسجيل اللاعب (" + name + ") أونلاين بنجاح!");
+            document.getElementById("newUsername").value = "";
+        }
     }
-    function chargePlayer() {
-        let name = document.getElementById("chargeUsername").value;
-        let amount = document.getElementById("chargeAmount").value;
-        if(name && amount) { alert("تم شحن " + amount + " بنجاح إلى حساب: " + name); document.getElementById("chargeUsername").value = ""; document.getElementById("chargeAmount").value = ""; }
+
+    window.chargePlayer = function() {
+        let name = document.getElementById("chargeUsername").value.trim();
+        let amount = parseFloat(document.getElementById("chargeAmount").value);
+        if(name && amount) {
+            update(ref(db, 'players/' + name), { balance: amount });
+            alert("تم تحديث شحن رصيد " + name + " بـ " + amount);
+            document.getElementById("chargeUsername").value = "";
+            document.getElementById("chargeAmount").value = "";
+        }
     }
 </script>
 </body>
